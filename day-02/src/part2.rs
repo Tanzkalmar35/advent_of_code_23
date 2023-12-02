@@ -1,10 +1,90 @@
+use std::collections::BTreeMap;
+use nom::bytes::complete::tag;
+use nom::character::complete;
+use nom::character::complete::{alpha1, digit1, line_ending};
+use nom::multi::separated_list1;
+use nom::IResult;
+use nom::sequence::{preceded, separated_pair};
 use crate::custom_error::AocError;
 
+#[derive(Debug)]
+struct Cube<'a> {
+    color: &'a str,
+    amount: u32,
+}
+
+#[derive(Debug)]
+struct Game<'a> {
+    id: &'a str,
+    rounds: Vec<Vec<Cube<'a>>>,
+    least_blue: u32,
+    least_green: u32,
+    least_red: u32,
+    least_power: u32,
+}
+
+impl<'a> Game<'a> {
+    fn get_least_possible_cubes(&self) -> u32 {
+        let map: BTreeMap<&str, u32> = BTreeMap::new();
+        self.rounds
+            .iter()
+            .fold(map, |mut acc, round| {
+                for cube in round.iter() {
+                    acc.entry(cube.color)
+                        .and_modify(|value| {
+                            *value = (*value).max(cube.amount);
+                        })
+                        .or_insert(cube.amount);
+                }
+                acc
+            })
+            .values()
+            .product()
+    }
+
+    fn set_power(&mut self) {
+        self.least_power = self.least_blue * self.least_red * self.least_green;
+    }
+}
+
 #[tracing::instrument]
-pub fn process(
-    _input: &str,
-) -> miette::Result<String, AocError> {
-    todo!("day 01 - part 1");
+pub fn process(input: &str) -> miette::Result<String, AocError> {
+    let games = parse_games(input).expect("should parse");
+    Ok(
+        games
+        .1
+        .iter()
+        .map(|game| game.get_least_possible_cubes())
+        .sum::<u32>()
+        .to_string()
+    )
+}
+
+// structure: game: round(cube); round(cube)...
+fn parse_games(input: &str) -> IResult<&str, Vec<Game>> {
+    let (input, games) = separated_list1(line_ending, game)(input)?;
+    Ok((input, games))
+}
+
+// Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+fn game(input: &str) -> IResult<&str, Game> {
+    let (input, id) =
+        preceded(tag("Game "), digit1)(input)?;
+    let (input, rounds) =
+        preceded(tag(": "), separated_list1(tag("; "), round))(input)?;
+    Ok((input, Game { id, rounds, least_blue: 0, least_green: 0, least_red: 0, least_power: 0 }))
+}
+
+// 3 blue, 4 red
+fn round(input: &str) -> IResult<&str, Vec<Cube>> {
+    let (input, cubes) = separated_list1(tag(", "), cube)(input)?;
+    Ok((input, cubes))
+}
+
+// 4 red
+fn cube(input: &str) -> IResult<&str, Cube> {
+    let (input, (amount, color)) = separated_pair(complete::u32, tag(" "), alpha1)(input)?;
+    Ok((input, Cube { color, amount }))
 }
 
 #[cfg(test)]
@@ -13,9 +93,12 @@ mod tests {
 
     #[test]
     fn test_process() -> miette::Result<()> {
-        todo!("haven't built test yet");
-        let input = "";
-        assert_eq!("", process(input)?);
+        let input = "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
+Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
+Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
+Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green";
+        assert_eq!("2286", process(input)?);
         Ok(())
     }
 }
