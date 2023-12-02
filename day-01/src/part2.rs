@@ -1,5 +1,3 @@
-use std::ops::Add;
-use tracing_subscriber::fmt::format;
 use crate::custom_error::AocError;
 
 #[tracing::instrument]
@@ -11,7 +9,7 @@ pub fn process(input: &str) -> miette::Result<String, AocError> {
 
 fn process_line(line: &str) -> u32 {
     let mut resulting: Vec<char> = vec![];
-    for (index, c) in line.chars().enumerate() {
+    for (index, _c) in line.chars().enumerate() {
         let red = &line[index..];
         let result = if red.starts_with("one") || red.starts_with("1") {
             '1'
@@ -45,10 +43,6 @@ fn process_line(line: &str) -> u32 {
     let last = resulting[resulting.len() - 1];
 
     format!("{}{}", first, last).parse().unwrap()
-}
-
-fn begins_with(line: &str, str: &str) -> bool {
-    line.starts_with(str)
 }
 
 #[cfg(test)]

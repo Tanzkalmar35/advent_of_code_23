@@ -15,12 +15,7 @@ struct Cube<'a> {
 
 #[derive(Debug)]
 struct Game<'a> {
-    id: &'a str,
     rounds: Vec<Vec<Cube<'a>>>,
-    least_blue: u32,
-    least_green: u32,
-    least_red: u32,
-    least_power: u32,
 }
 
 impl<'a> Game<'a> {
@@ -40,10 +35,6 @@ impl<'a> Game<'a> {
             })
             .values()
             .product()
-    }
-
-    fn set_power(&mut self) {
-        self.least_power = self.least_blue * self.least_red * self.least_green;
     }
 }
 
@@ -68,11 +59,11 @@ fn parse_games(input: &str) -> IResult<&str, Vec<Game>> {
 
 // Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
 fn game(input: &str) -> IResult<&str, Game> {
-    let (input, id) =
+    let (input, _id) =
         preceded(tag("Game "), digit1)(input)?;
     let (input, rounds) =
         preceded(tag(": "), separated_list1(tag("; "), round))(input)?;
-    Ok((input, Game { id, rounds, least_blue: 0, least_green: 0, least_red: 0, least_power: 0 }))
+    Ok((input, Game { rounds }))
 }
 
 // 3 blue, 4 red
