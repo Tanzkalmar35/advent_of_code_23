@@ -1,129 +1,109 @@
-use std::str::Lines;
+use std::collections::HashSet;
+use glam::IVec2;
+use itertools::Itertools;
+use nom::branch::alt;
+use nom::bytes::complete::{is_not, take_till1};
+use nom::character::complete::digit1;
+use nom::combinator::iterator;
+use nom::IResult;
+use nom_locate::LocatedSpan;
 use crate::custom_error::AocError;
+use nom::Parser;
+
+type Span<'a> = LocatedSpan<&'a str>;
+type SpanIVec2<'a> = LocatedSpan<&'a str, IVec2>;
+
+#[derive(Debug, PartialEq)]
+enum Value<'a> {
+    Empty,
+    Symbol(SpanIVec2<'a>),
+    Number(SpanIVec2<'a>),
+}
 
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String, AocError> {
-    let result = process_line(input);
+    let objects = parse_grid(Span::new(input)).unwrap().1;
+
+    let symbol_map = objects
+        .iter()
+        .filter_map(|value| match value {
+            Value::Empty => None,
+            Value::Symbol(sym) => Some(sym.extra),
+            Value::Number(_) => None,
+        })
+        .collect::<HashSet<IVec2>>();
+
+    let result = objects
+        .iter()
+        .filter_map(|value| {
+            let Value::Number(num) = value else {
+                return None;
+            };
+            let surrounding_positions = [
+                // east border
+                IVec2::new(num.fragment().len() as i32, 0),
+                // west border
+                IVec2::new(-1, 0),
+            ]
+                .into_iter()
+                .chain(
+                    // north border
+                    (-1..=num.fragment().len() as i32).map(
+                        |x_offset| IVec2::new(x_offset, 1),
+                    ),
+                )
+                .chain(
+                    // south border
+                    (-1..=num.fragment().len() as i32).map(
+                        |x_offset| IVec2::new(x_offset, -1),
+                    ),
+                )
+                .map(|pos| pos + num.extra)
+                .collect::<Vec<IVec2>>();
+
+            surrounding_positions
+                .iter()
+                .any(|pos| symbol_map.contains(pos))
+                .then_some(
+                    num.fragment()
+                        .parse::<u32>()
+                        .expect("should be a valid number"),
+                )
+        })
+        .sum::<u32>();
+
     Ok(result.to_string())
 }
 
-// input:
-// 467..114..
-// ...*......
-// ..35..633.
-// ......#...
-// 617*......
-// .....+.58.
-// ..592.....
-// ......755.
-// ...$.*....
-// .664.598..
-fn process_line(input: &str) -> u32 {
-    let mut lines = input.lines();
-    let mut result = 0;
-    for (line_idx, line) in lines.clone().enumerate() { // loop through lines
-        for (char_idx, char) in line.chars().enumerate() { // loop through chars of line
-            if char.is_numeric() {
-                let first_digit_adjacent = is_adjacent_to_symbol(&mut lines, line_idx, char_idx);
-                if line.chars().nth(char_idx + 1).unwrap().is_numeric() { // if the number is at least 2 digits
-                    let second_digit_adjacent = is_adjacent_to_symbol(&mut lines, line_idx, char_idx + 1);
-                    if line.chars().nth(char_idx + 2).unwrap().is_numeric() { // if the number is 3 digits
-                        let third_digit_adjacent = is_adjacent_to_symbol(&mut lines, line_idx, char_idx + 2);
-                        if third_digit_adjacent {
-                            result +=
-                                format!("{}{}{}",
-                                        line.chars().nth(char_idx).unwrap(),
-                                        line.chars().nth(char_idx + 1).unwrap(),
-                                        line.chars().nth(char_idx + 2).unwrap())
-                                    .parse::<u32>().unwrap();
-                        }
-                    } else {
-                        if second_digit_adjacent {
-                            result +=
-                                format!("{}{}",
-                                        line.chars().nth(char_idx).unwrap(),
-                                        line.chars().nth(char_idx + 1).unwrap())
-                                    .parse::<u32>().unwrap();
-                        }
-                    }
-                } else {
-                    if first_digit_adjacent {
-                        result +=
-                            format!("{}",
-                                    line.chars().nth(char_idx).unwrap())
-                                .parse::<u32>().unwrap();
-                    }
-                }
-            }
-        }
-    }
-    result
+fn with_xy(span: Span) -> SpanIVec2 {
+    let x = span.get_column() as i32 - 1; // -1 because these are 1 indexed
+    let y = span.location_line() as i32 - 1; // -1 because these are 1 indexed
+    span.map_extra(|_| IVec2::new(x, y))
 }
 
-fn is_adjacent_to_symbol(lines: &mut Lines, line_idx: usize, char_idx: usize) -> bool {
-    is_adjacent_above(lines, line_idx, char_idx) ||
-        is_adjacent_next_to(lines, line_idx, char_idx) ||
-        is_adjacent_below(lines, line_idx, char_idx)
-}
+fn parse_grid(input: Span) -> IResult<Span, Vec<Value>> {
+    let mut it = iterator(
+        input,
+        alt((
+            digit1
+                .map(|span| with_xy(span))
+                .map(Value::Number),
+            is_not(".\n0123456789")
+                .map(|span| with_xy(span))
+                .map(Value::Symbol),
+            take_till1(|char: char| {
+                char.is_ascii_digit() || char != '.' && char != '\n'
+            })
+                .map(|_| Value::Empty),
+        )),
+    );
 
-fn is_adjacent_above(lines: &mut Lines, line_idx: usize, char_idx: usize) -> bool {
-    let mut is_adjacent: bool = false;
-    let mut line_above: &str = "";
-    if line_idx != 0 {
-        line_above = lines.nth(line_idx - 1).unwrap();
-    }
-    if !line_above.eq("") {
-        for _i in 0..3 {
-            if char_idx != 0 {
-                is_adjacent = is_symbol(line_above.chars().nth(char_idx - 1).unwrap()) ||
-                    is_symbol(line_above.chars().nth(char_idx).unwrap()) ||
-                    is_symbol(line_above.chars().nth(char_idx + 1).unwrap());
-            }
-        }
-    }
-    is_adjacent
-}
+    let parsed = it
+        .filter(|value| value != &Value::Empty)
+        .collect::<Vec<Value>>();
+    let res: IResult<_, _> = it.finish();
 
-fn is_adjacent_next_to(lines: &mut Lines, line_idx: usize, char_idx: usize) -> bool {
-    let mut is_adjacent: bool = false;
-    let mut line = "";
-    if line_idx > 0 {
-        line = lines.nth(line_idx).unwrap();
-    }
-    if char_idx != 0 {
-        is_adjacent = is_symbol(line.chars().nth(char_idx - 1).unwrap()) ||
-            is_symbol(line.chars().nth(char_idx + 1).unwrap());
-    }
-    is_adjacent
-}
-
-fn is_adjacent_below(lines: &mut Lines, line_idx: usize, char_idx: usize) -> bool {
-    let mut is_adjacent: bool = false;
-    let mut line_below: &str = "";
-    let line_count = lines.count() + 1;
-    if line_idx < line_count {
-        //line_below = lines.nth(line_idx + 1).unwrap(); // Fails at .unwrap()
-        if let Some(line) = lines.nth(line_idx + 1) {
-            let lin = line;
-            line_below = line;
-        } else {
-            return false; // or handle the error in some other way
-        }
-    }
-    if !line_below.eq("") {
-        for _i in 0..3 {
-            if char_idx != 0 {
-                is_adjacent = is_symbol(line_below.chars().nth(char_idx - 1).unwrap()) ||
-                    is_symbol(line_below.chars().nth(char_idx).unwrap()) ||
-                    is_symbol(line_below.chars().nth(char_idx + 1).unwrap());
-            }
-        }
-    }
-    is_adjacent
-}
-
-fn is_symbol(char: char) -> bool {
-    !char.is_numeric() && !char.eq(&'.')
+    res.map(|(input, _)| (input, parsed))
 }
 
 #[cfg(test)]
@@ -142,7 +122,7 @@ mod tests {
 ......755.
 ...$.*....
 .664.598..";
-        assert_eq!("", process(input)?);
+        assert_eq!("4361", process(input)?);
         Ok(())
     }
 }
