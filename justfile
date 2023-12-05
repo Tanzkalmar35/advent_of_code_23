@@ -1,5 +1,5 @@
 # use cmd.exe instead of sh:
-set shell := ["cmd.exe", "/c"]
+# set shell := ["cmd.exe", "/c"]
 
 work day part:
     cargo watch -x "check -p {{day}}" -s "just test {{part}} -p {{day}}" -s "just lint {{day}}" -s "just bench {{day}} {{part}}" -s "just flamegraph {{day}} {{part}}"
