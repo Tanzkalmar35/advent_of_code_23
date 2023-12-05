@@ -2,7 +2,7 @@ use crate::custom_error::AocError;
 
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String, AocError> {
-    todo!()
+    todo!("count all cards, including copies")
 }
 
 #[cfg(test)]
