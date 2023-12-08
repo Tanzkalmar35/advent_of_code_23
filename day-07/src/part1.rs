@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use nom::Parser;
 use crate::custom_error::AocError;
 
 enum Cards {
@@ -37,11 +39,45 @@ impl Hand {
         Self { hand, hand_type: Types::None }
     }
 
-    pub fn get_type(&self) -> Self {
-        let map = self.hand.split("").map(|char| {
-
-        });
+    pub fn get_type(&mut self) -> Self {
+        if self.is_high_card() {
+           self.hand_type = Types::HighCard;
+        } else if self.is_one_pair() {
+            self.hand_type = Types::OnePair;
+        }
+        // ...
         todo!()
+    }
+
+    /// Checks whether the hand is a HighCard (1)
+    pub fn is_high_card(&self) -> bool {
+        let mut char_counts = HashMap::new();
+        for char in self.hand.chars() {
+            *char_counts.entry(char).or_insert(0) += 1;
+        }
+        for &count in char_counts.values() {
+            if count >= 2 {
+                false
+            }
+        }
+        true
+    }
+
+    /// Checks whether the hand is a OnePair (2)
+    pub fn is_one_pair(&self) -> bool {
+        let mut char_counts = HashMap::new();
+        for char in self.hand.chars() {
+            *char_counts.entry(char).or_insert(0) += 1;
+        }
+        let mut pairs_count = 0;
+        for &count in char_counts.values() {
+            if count == 2 {
+                pairs_count += 1;
+            } else if count > 2 {
+                false
+            }
+        }
+        pairs_count == 1
     }
 }
 
