@@ -44,12 +44,23 @@ impl Hand {
            self.hand_type = Types::HighCard;
         } else if self.is_one_pair() {
             self.hand_type = Types::OnePair;
+        } else if self.is_two_pair() {
+            self.hand_type = Types::TwoPair;
+        } else if self.is_three_of_a_kind() {
+            self.hand_type = Types::ThreeOfAKind;
+        } else if self.is_full_house() {
+            self.hand_type = Types::FullHouse;
+        }
+        else if self.is_four_of_a_kind() {
+            self.hand_type = Types::FourOfAKind;
+        } else if self.is_five_of_a_kind() {
+            self.hand_type = Types::FiveOfAKind;
         }
         // ...
         todo!()
     }
 
-    /// Checks whether the hand is a HighCard (1)
+    /// Checks whether the hand is a HighCard (Value 1)
     pub fn is_high_card(&self) -> bool {
         let mut char_counts = HashMap::new();
         for char in self.hand.chars() {
@@ -63,21 +74,51 @@ impl Hand {
         true
     }
 
-    /// Checks whether the hand is a OnePair (2)
-    pub fn is_one_pair(&self) -> bool {
+    /// Checks if the hand is a full house (Value 5)
+    fn is_full_house() {
+
+    }
+
+    /// Checks whether the hand is a OnePair (Value 2)
+    fn is_one_pair(&self) -> bool {
+        self.is_n_of_a_kind(1, 2)
+    }
+
+    /// Checks whether the hand is a TwoPair (Value 3)
+    fn is_two_pair(&self) -> bool {
+        self.is_n_of_a_kind(2, 2)
+    }
+
+    /// Checks whether the hand contains three of a kind (Value 4)
+    fn is_three_of_a_kind(&self) -> bool {
+        self.is_n_of_a_kind(1, 3)
+    }
+
+    /// Checks whether the hand contains four of a kind (Value 6)
+    fn is_four_of_a_kind(&self) -> bool {
+        self.is_n_of_a_kind(1, 4)
+    }
+
+    /// Checks whether the hand contains five of a kind (Value 7)
+    fn is_five_of_a_kind(&self) -> bool {
+        self.is_n_of_a_kind(1, 5)
+    }
+
+    /// Checks if the hand contains a given number of pairs
+    fn is_n_of_a_kind(&self, n_count: u32, n: u32) -> bool {
         let mut char_counts = HashMap::new();
         for char in self.hand.chars() {
             *char_counts.entry(char).or_insert(0) += 1;
         }
-        let mut pairs_count = 0;
-        for &count in char_counts.values() {
-            if count == 2 {
-                pairs_count += 1;
-            } else if count > 2 {
+        let mut n_of_a_kind_count = 0;
+        for &same_char_count in char_counts.values() {
+            if same_char_count == n {
+                n_of_a_kind_count += 1;
+            } else if same_char_count > n {
                 false
             }
         }
-        pairs_count == 1
+        n_of_a_kind_count == n_count
     }
 }
 
