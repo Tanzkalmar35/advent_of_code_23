@@ -20,6 +20,7 @@ enum Cards {
 }
 
 #[derive(Debug)]
+#[derive(PartialEq)]
 enum Types {
     FiveOfAKind = 7,
     FourOfAKind = 6,
@@ -44,20 +45,20 @@ impl Hand {
     }
 
     pub fn get_type(mut self) -> Types {
-        if self.is_high_card() {
-            self.hand_type = Types::HighCard;
-        } else if self.is_one_pair() {
-            self.hand_type = Types::OnePair;
-        } else if self.is_two_pair() {
-            self.hand_type = Types::TwoPair;
-        } else if self.is_three_of_a_kind() {
-            self.hand_type = Types::ThreeOfAKind;
-        } else if self.is_full_house() {
-            self.hand_type = Types::FullHouse;
+        if self.is_five_of_a_kind() {
+            self.hand_type = Types::FiveOfAKind;
         } else if self.is_four_of_a_kind() {
             self.hand_type = Types::FourOfAKind;
-        } else if self.is_five_of_a_kind() {
-            self.hand_type = Types::FiveOfAKind;
+        } else if self.is_full_house() {
+            self.hand_type = Types::FullHouse;
+        } else if self.is_three_of_a_kind() {
+            self.hand_type = Types::ThreeOfAKind;
+        } else if self.is_two_pair() {
+            self.hand_type = Types::TwoPair;
+        } else if self.is_one_pair() {
+            self.hand_type = Types::OnePair;
+        } else if self.is_high_card() {
+            self.hand_type = Types::HighCard;
         } else {
             self.hand_type = Types::None;
         }
@@ -95,8 +96,13 @@ impl Hand {
 
     /// Checks if the hand is a full house (Value 5)
     fn is_full_house(&self) -> bool {
-        self.is_n_of_a_kind(1, 3) ||
-            self.is_n_of_a_kind(1, 2)
+        let mut char_counts = HashMap::new();
+        for char in self.hand.chars() {
+            *char_counts.entry(char).or_insert(0) += 1;
+        }
+        let i = char_counts.len() == 2;
+        let x = char_counts.values().nth(1).unwrap() == &3i32;
+        i && x
     }
 
     /// Checks whether the hand contains four of a kind (Value 6)
@@ -129,14 +135,8 @@ impl Hand {
 
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String, AocError> {
-    let it = input.lines().map(|line| {
-        let hand = line.split_whitespace().nth(0).unwrap();
-        let bid = line.split_whitespace().nth(1).unwrap().parse::<u32>().unwrap();
-        let from_hand = Hand::with_bid(String::from(hand), bid);
-        // TODO: place the hand types in a vec, sort them and calc values, then sum
-    });
     for line in input.lines() {
-
+        Hand::with_bid(String::from(line.split_whitespace().nth(0).unwrap()), 0).get_type();
     }
     Ok("".to_string())
 }
@@ -144,6 +144,55 @@ pub fn process(input: &str) -> miette::Result<String, AocError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_high_card() -> miette::Result<()> {
+        let input = String::from("23456");
+        assert_eq!(Types::HighCard, Hand::with_bid(input, 0).get_type());
+        Ok(())
+    }
+
+    #[test]
+    fn test_one_pair() -> miette::Result<()> {
+        let input = String::from("A23A4");
+        assert_eq!(Types::OnePair, Hand::with_bid(input, 0).get_type());
+        Ok(())
+    }
+
+    #[test]
+    fn test_two_pair() -> miette::Result<()> {
+        let input = String::from("23432");
+        assert_eq!(Types::TwoPair, Hand::with_bid(input, 0).get_type());
+        Ok(())
+    }
+
+    #[test]
+    fn test_three_of_a_kind() -> miette::Result<()> {
+        let input = String::from("TTT98");
+        assert_eq!(Types::ThreeOfAKind, Hand::with_bid(input, 0).get_type());
+        Ok(())
+    }
+
+    #[test]
+    fn test_full_house() -> miette::Result<()> {
+        let input = String::from("23332");
+        assert_eq!(Types::FullHouse, Hand::with_bid(input, 0).get_type());
+        Ok(())
+    }
+
+    #[test]
+    fn test_four_of_a_kind() -> miette::Result<()> {
+        let input = String::from("AA8AA");
+        assert_eq!(Types::FourOfAKind, Hand::with_bid(input, 0).get_type());
+        Ok(())
+    }
+
+    #[test]
+    fn five_of_a_kind() -> miette::Result<()> {
+        let input = String::from("AAAAA");
+        assert_eq!(Types::FiveOfAKind, Hand::with_bid(input, 0).get_type());
+        Ok(())
+    }
 
     #[test]
     fn test_process() -> miette::Result<()> {
