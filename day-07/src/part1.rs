@@ -1,5 +1,7 @@
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, HashMap};
 use itertools::Itertools;
+use nom::combinator::verify;
 use nom::Parser;
 use crate::custom_error::AocError;
 
@@ -35,11 +37,11 @@ enum Types {
 struct Hand {
     hand: String,
     hand_type: u32,
-    bid: u32,
+    bid: u32
 }
 
 impl Hand {
-    pub fn from_hand_with_bid(hand: String, bid: u32) -> Self {
+    pub fn of(hand: String, bid: u32) -> Self {
         Self { hand, hand_type: Types::None as u32, bid }
     }
 
@@ -99,9 +101,7 @@ impl Hand {
         for char in self.hand.chars() {
             *char_counts.entry(char).or_insert(0) += 1;
         }
-        let i = char_counts.len() == 2;
-        let x = char_counts.values().nth(1).unwrap() == &3i32;
-        i && x
+        char_counts.len() == 2 && char_counts.values().nth(1).unwrap() == &3i32
     }
 
     /// Checks whether the hand contains four of a kind (Value 6)
@@ -134,15 +134,28 @@ impl Hand {
 
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String, AocError> {
-    let mut res_map = vec![];
+    let mut res: u32 = 0;
+    let mut res_vec = vec![];
     for line in input.lines() {
         let hand = line.split_whitespace().nth(0).unwrap();
         let bid = line.split_whitespace().nth(1).unwrap().parse::<u32>().expect("should be a number");
-        let hand_type = Hand::from_hand_with_bid(String::from(hand), bid).get_type();
-        res_map.push(hand_type)
+        let hand_obj = Hand::of(String::from(hand), bid);
+        res_vec.push(hand_obj);
     }
-    res_map.sort();
-    Ok("".to_string())
+    res_vec.sort_unstable_by(hand_order);
+    let _ = res_vec.iter().enumerate().map(|(idx, hand)| {
+        res += hand.bid * (idx as u32 + 1);
+    });
+    Ok(res.to_string())
+}
+
+pub fn hand_order(a: &Hand, b: &Hand) -> Ordering {
+    let type_cmp = a.get_type().cmp(&b.get_type());
+    if type_cmp == Ordering::Equal {
+        return (a.hand.chars().next().expect("should exist") as u32)
+            .cmp(&(b.hand.chars().next().expect("should exist") as u32));
+    }
+    type_cmp
 }
 
 #[cfg(test)]
@@ -152,49 +165,49 @@ mod tests {
     #[test]
     fn test_high_card() -> miette::Result<()> {
         let input = String::from("23456");
-        assert_eq!(Types::HighCard, Hand::from_hand_with_bid(input, 0).get_type());
+        assert_eq!(Types::HighCard as u32, Hand::of(input, 0).get_type());
         Ok(())
     }
 
     #[test]
     fn test_one_pair() -> miette::Result<()> {
         let input = String::from("A23A4");
-        assert_eq!(Types::OnePair, Hand::from_hand_with_bid(input, 0).get_type());
+        assert_eq!(Types::OnePair as u32, Hand::of(input, 0).get_type());
         Ok(())
     }
 
     #[test]
     fn test_two_pair() -> miette::Result<()> {
         let input = String::from("23432");
-        assert_eq!(Types::TwoPair, Hand::from_hand_with_bid(input, 0).get_type());
+        assert_eq!(Types::TwoPair as u32, Hand::of(input, 0).get_type());
         Ok(())
     }
 
     #[test]
     fn test_three_of_a_kind() -> miette::Result<()> {
         let input = String::from("TTT98");
-        assert_eq!(Types::ThreeOfAKind, Hand::from_hand_with_bid(input, 0).get_type());
+        assert_eq!(Types::ThreeOfAKind as u32, Hand::of(input, 0).get_type());
         Ok(())
     }
 
     #[test]
     fn test_full_house() -> miette::Result<()> {
         let input = String::from("23332");
-        assert_eq!(Types::FullHouse, Hand::from_hand_with_bid(input, 0).get_type());
+        assert_eq!(Types::FullHouse as u32, Hand::of(input, 0).get_type());
         Ok(())
     }
 
     #[test]
     fn test_four_of_a_kind() -> miette::Result<()> {
         let input = String::from("AA8AA");
-        assert_eq!(Types::FourOfAKind, Hand::from_hand_with_bid(input, 0).get_type());
+        assert_eq!(Types::FourOfAKind as u32, Hand::of(input, 0).get_type());
         Ok(())
     }
 
     #[test]
     fn five_of_a_kind() -> miette::Result<()> {
         let input = String::from("AAAAA");
-        assert_eq!(Types::FiveOfAKind, Hand::from_hand_with_bid(input, 0).get_type());
+        assert_eq!(Types::FiveOfAKind as u32, Hand::of(input, 0).get_type());
         Ok(())
     }
 
@@ -205,7 +218,7 @@ T55J5 684
 KK677 28
 KTJJT 220
 QQQJA 483";
-        assert_eq!("6440", process(input)?);
+        assert_eq!("6440", process(input).unwrap());
         Ok(())
     }
 }
