@@ -13,16 +13,7 @@ pub fn process_line(line: &str) {
 }
 
 fn split_instr_and_seq(input: &str) -> Vec<Vec<&str>> {
-    let result: Vec<Vec<&str>> = input.lines().fold(vec![], |mut acc, line| {
-        if line.trim().is_empty() {
-            acc.push(vec![]);
-        } else {
-            let last: &mut Vec<&str> = acc.last_mut().unwrap();
-            last.push(line);
-        }
-        acc
-    });
-    result
+    todo!()
 }
 
 #[cfg(test)]
